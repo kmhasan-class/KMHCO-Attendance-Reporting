@@ -7,13 +7,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
 @SpringBootApplication
 public class KmhcoAttendanceReportingApplication {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         ConfigurableApplicationContext run = SpringApplication.run(KmhcoAttendanceReportingApplication.class, args);
         List<String[]> rowData = run.getBean(CsvReadingService.class).getRecords("attendance.csv");
         System.out.println("Read " + rowData.size() + " lines");

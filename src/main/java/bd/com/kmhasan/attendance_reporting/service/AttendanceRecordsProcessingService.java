@@ -5,6 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,8 +18,29 @@ import bd.com.kmhasan.attendance_reporting.model.Record;
 
 @Service
 public class AttendanceRecordsProcessingService {
+    private String dateToString(LocalDate localDate) {
+        System.out.println("Processing " + localDate);
+        String pattern = "MM-dd";
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+        return simpleDateFormat.format(localDate);
+    }
 
-    public List<Record> getReport(List<String[]> rowData, LocalDate startDate, LocalDate endDate) {
+    private String timeToString(LocalDateTime startTime, LocalDateTime endTime) {
+        String pattern = "HH:mm";
+        return pattern;
+//        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+//        StringBuilder builder = new StringBuilder();
+//        if (startTime != null)
+//            builder.append(simpleDateFormat.format(startTime));
+//        else builder.append('X');
+//        builder.append('-');
+//        if (endTime != null)
+//            builder.append(simpleDateFormat.format(endTime));
+//        else builder.append('X');
+//        return builder.toString();
+    }
+
+    public List<Record> getReport(List<String[]> rowData, LocalDate startDate, LocalDate endDate) throws IOException {
         System.out.println(Arrays.toString(rowData.get(0)));
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d/yyyy h:mm:ss a");
 
@@ -78,28 +103,38 @@ public class AttendanceRecordsProcessingService {
             Employee[] employees = new Employee[rowIndices.size()];
             LocalDate[] dates = daysList.toArray(new LocalDate[0]);
 
-            System.out.println("<html>");
-            System.out.println("<head><title>Attendance Data</title></head>");
-            System.out.println("<body>");
-            System.out.println("<table>");
-            System.out.println("<tr>");
-            System.out.println("<th>Department</th>");
-            System.out.println("<th>Employee</th>");
-            for (LocalDate localDate : dates)
-                System.out.println("<th>" + localDate + "</th>");
-            System.out.println("</tr>");
-            for (int r = 0; r < employees.length; r++) {
-                for (int c = 0; c < dates.length; c++) {
+            rowIndices.forEach(((employee, index) -> employees[index] = employee));
 
+            BufferedWriter writer = new BufferedWriter(new FileWriter("output.html", true));
+            
+            writer.append("<html>");
+            writer.append("<head><title>Attendance Data</title></head>");
+            writer.append("<body>");
+            writer.append("<table border=1>");
+            writer.append("<tr>");
+            writer.append("<th>Department</th>");
+            writer.append("<th>Employee</th>");
+            for (LocalDate localDate : dates)
+                writer.append("<th>" + dateToString(localDate) + "</th>");
+            writer.append("</tr>");
+            for (int r = 0; r < employees.length; r++) {
+                writer.append("<tr>");
+                writer.append("<th>" + employees[r].getDepartment() + "</th>");
+                writer.append("<th>" + employees[r].getEmployeeName() + "</th>");
+                for (int c = 0; c < dates.length; c++) {
+                    writer.append("<th>" + timeToString(entriesMatrix[r][c][0], entriesMatrix[r][c][1]) + "</th>");
                 }
+                writer.append("</tr>");
             }
-            System.out.println("</table>");
-            System.out.println("</body>");
-            System.out.println("</html>");
+            writer.append("</table>");
+            writer.append("</body>");
+            writer.append("</html>");
+            writer.close();
         }
 
         if (records == null)
             return new ArrayList<>();
         return records;
     }
+
 }
