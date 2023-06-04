@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -98,10 +99,10 @@ public class AttendanceRecordsProcessingService {
 
             rowIndices.forEach(((employee, index) -> employees[index] = employee));
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter("output.html", false));
+            BufferedWriter writer = new BufferedWriter(new FileWriter("output/attendance-report.html", false));
 
             writer.append("<html>");
-            writer.append("<head><title>Attendance Data</title></head>");
+            writer.append("<head><title>Attendance Data</title><link rel=\"stylesheet\" href=\"styles.css\"></head>");
             writer.append("<body>");
             writer.append("<h1>KMHCO Attendance Data for the period ").append(dateToMonthDayYearString(daysList.get(0))).append(" to ").append(dateToMonthDayYearString(daysList.get(daysList.size() - 1))).append("</h1>");
             writer.append("<table cellspacing=\"0\" cellpadding=\"0\" border=\"1\" bgcolor=\"#FFF\">");
@@ -114,13 +115,16 @@ public class AttendanceRecordsProcessingService {
             for (int r = 0; r < employees.length; r++) {
                 writer.append("<tr>");
                 writer.append("<th>").append(employees[r].getDepartment()).append("</th>");
-                writer.append("<th>").append(employees[r].getEmployeeName()).append("</th>");
+                writer.append("<td>").append(employees[r].getEmployeeName()).append("</th>");
                 for (int c = 0; c < dates.length; c++) {
+                    writer.append("<td class=\"");
                     if (entriesMatrix[r][c][0] != null && entriesMatrix[r][c][0].isAfter(entriesMatrix[r][c][0].toLocalDate().atTime(9, 30)))
-                        writer.append("<th bgcolor=\"#FF0\">");
-                    else writer.append("<th>");
+                        writer.append(" late-entry");
+                    if (dates[c].getDayOfWeek() == DayOfWeek.FRIDAY || dates[c].getDayOfWeek() == DayOfWeek.SATURDAY)
+                        writer.append(" weekend");
+                    writer.append("\">");
                     writer.append(timeToString(entriesMatrix[r][c][0], entriesMatrix[r][c][1]));
-                    writer.append("</th>");
+                    writer.append("</td>");
                 }
                 writer.append("</tr>");
             }
