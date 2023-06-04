@@ -1,43 +1,40 @@
 package bd.com.kmhasan.attendance_reporting.service;
 
 import bd.com.kmhasan.attendance_reporting.model.Employee;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import bd.com.kmhasan.attendance_reporting.model.Record;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-import bd.com.kmhasan.attendance_reporting.model.Record;
-
 @Service
 public class AttendanceRecordsProcessingService {
     private String dateToString(LocalDate localDate) {
-        System.out.println("Processing " + localDate);
-        String pattern = "MM-dd";
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-        return simpleDateFormat.format(localDate);
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("EEE-dd");
+        return localDate.format(dateTimeFormatter);
+    }
+
+    private String dateToMonthDayYearString(LocalDate localDate) {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+        return localDate.format(dateTimeFormatter);
     }
 
     private String timeToString(LocalDateTime startTime, LocalDateTime endTime) {
-        String pattern = "HH:mm";
-        return pattern;
-//        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-//        StringBuilder builder = new StringBuilder();
-//        if (startTime != null)
-//            builder.append(simpleDateFormat.format(startTime));
-//        else builder.append('X');
-//        builder.append('-');
-//        if (endTime != null)
-//            builder.append(simpleDateFormat.format(endTime));
-//        else builder.append('X');
-//        return builder.toString();
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+        StringBuilder builder = new StringBuilder();
+        if (startTime != null)
+            builder.append(startTime.format(dateTimeFormatter));
+        else builder.append('X');
+        builder.append('-');
+        if (endTime != null)
+            builder.append(endTime.format(dateTimeFormatter));
+        else builder.append('X');
+        return builder.toString();
     }
 
     public List<Record> getReport(List<String[]> rowData, LocalDate startDate, LocalDate endDate) throws IOException {
@@ -51,15 +48,11 @@ public class AttendanceRecordsProcessingService {
             LocalDateTime dateTime = LocalDateTime.parse(dateTimeString, formatter);
             Record record = new Record(new Employee(row[0], row[1]), dateTime);
             if ((startDate == null || !dateTime.isBefore(startDate.atStartOfDay()))
-                && (endDate == null || dateTime.isBefore(endDate.atStartOfDay().plusDays(1))))
+                    && (endDate == null || dateTime.isBefore(endDate.atStartOfDay().plusDays(1))))
                 records.add(record);
         }
 
-        if (records != null || records.size() != 0) {
-            if (startDate == null)
-                startDate = records.get(0).getScanningTime().toLocalDate();
-            if (endDate == null)
-                endDate = records.get(0).getScanningTime().toLocalDate();
+        if (records.size() != 0) {
             startDate = records.stream().map(Record::getScanningTime).min(LocalDateTime::compareTo).get().toLocalDate();
             endDate = records.stream().map(Record::getScanningTime).max(LocalDateTime::compareTo).get().toLocalDate();
 
@@ -80,22 +73,22 @@ public class AttendanceRecordsProcessingService {
                 Employee employee = record.getEmployee();
                 LocalDateTime scanningTime = record.getScanningTime();
 
-                int employeeIndex = rowIndices.get(employee).intValue();
-                int dateIndex = columnIndices.get(scanningTime.toLocalDate()).intValue();
+                int employeeIndex = rowIndices.get(employee);
+                int dateIndex = columnIndices.get(scanningTime.toLocalDate());
 
                 if (entriesMatrix[employeeIndex][dateIndex][0] == null) {
                     entriesMatrix[employeeIndex][dateIndex][0] = scanningTime;
                 } else if (entriesMatrix[employeeIndex][dateIndex][1] == null) {
                     entriesMatrix[employeeIndex][dateIndex][1] = scanningTime;
-                    if (entriesMatrix[employeeIndex][dateIndex][0].compareTo(entriesMatrix[employeeIndex][dateIndex][1]) > 0) {
+                    if (entriesMatrix[employeeIndex][dateIndex][0].isAfter(entriesMatrix[employeeIndex][dateIndex][1])) {
                         LocalDateTime temp = entriesMatrix[employeeIndex][dateIndex][0];
                         entriesMatrix[employeeIndex][dateIndex][0] = entriesMatrix[employeeIndex][dateIndex][1];
                         entriesMatrix[employeeIndex][dateIndex][1] = temp;
                     }
                 } else {
-                    if (scanningTime.compareTo(entriesMatrix[employeeIndex][dateIndex][0]) < 0)
+                    if (scanningTime.isBefore(entriesMatrix[employeeIndex][dateIndex][0]))
                         entriesMatrix[employeeIndex][dateIndex][0] = scanningTime;
-                    if (scanningTime.compareTo(entriesMatrix[employeeIndex][dateIndex][1]) > 1)
+                    if (scanningTime.compareTo(entriesMatrix[employeeIndex][dateIndex][1]) > 0)
                         entriesMatrix[employeeIndex][dateIndex][1] = scanningTime;
                 }
             }
@@ -105,24 +98,29 @@ public class AttendanceRecordsProcessingService {
 
             rowIndices.forEach(((employee, index) -> employees[index] = employee));
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter("output.html", true));
-            
+            BufferedWriter writer = new BufferedWriter(new FileWriter("output.html", false));
+
             writer.append("<html>");
             writer.append("<head><title>Attendance Data</title></head>");
             writer.append("<body>");
-            writer.append("<table border=1>");
+            writer.append("<h1>KMHCO Attendance Data for the period ").append(dateToMonthDayYearString(daysList.get(0))).append(" to ").append(dateToMonthDayYearString(daysList.get(daysList.size() - 1))).append("</h1>");
+            writer.append("<table cellspacing=\"0\" cellpadding=\"0\" border=\"1\" bgcolor=\"#FFF\">");
             writer.append("<tr>");
             writer.append("<th>Department</th>");
             writer.append("<th>Employee</th>");
             for (LocalDate localDate : dates)
-                writer.append("<th>" + dateToString(localDate) + "</th>");
+                writer.append("<th>").append(dateToString(localDate)).append("</th>");
             writer.append("</tr>");
             for (int r = 0; r < employees.length; r++) {
                 writer.append("<tr>");
-                writer.append("<th>" + employees[r].getDepartment() + "</th>");
-                writer.append("<th>" + employees[r].getEmployeeName() + "</th>");
+                writer.append("<th>").append(employees[r].getDepartment()).append("</th>");
+                writer.append("<th>").append(employees[r].getEmployeeName()).append("</th>");
                 for (int c = 0; c < dates.length; c++) {
-                    writer.append("<th>" + timeToString(entriesMatrix[r][c][0], entriesMatrix[r][c][1]) + "</th>");
+                    if (entriesMatrix[r][c][0] != null && entriesMatrix[r][c][0].isAfter(entriesMatrix[r][c][0].toLocalDate().atTime(9, 30)))
+                        writer.append("<th bgcolor=\"#FF0\">");
+                    else writer.append("<th>");
+                    writer.append(timeToString(entriesMatrix[r][c][0], entriesMatrix[r][c][1]));
+                    writer.append("</th>");
                 }
                 writer.append("</tr>");
             }
@@ -132,8 +130,6 @@ public class AttendanceRecordsProcessingService {
             writer.close();
         }
 
-        if (records == null)
-            return new ArrayList<>();
         return records;
     }
 

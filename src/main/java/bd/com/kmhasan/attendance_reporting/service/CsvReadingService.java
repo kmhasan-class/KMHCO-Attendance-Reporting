@@ -3,16 +3,14 @@ package bd.com.kmhasan.attendance_reporting.service;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class CsvReadingService {
-    private static final String COMMA_DELIMITER = "\\,";
+    private static final String COMMA_DELIMITER = ",";
 
     public List<String[]> getRecords(String filename) {
         System.out.println("HELLO WORLD");
@@ -23,8 +21,6 @@ public class CsvReadingService {
                 String[] values = line.split(COMMA_DELIMITER);
                 records.add(values);
             }
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

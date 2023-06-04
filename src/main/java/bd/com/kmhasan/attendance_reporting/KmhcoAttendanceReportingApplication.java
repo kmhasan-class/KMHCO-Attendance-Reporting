@@ -20,7 +20,7 @@ public class KmhcoAttendanceReportingApplication {
         System.out.println("Read " + rowData.size() + " lines");
         List<Record> records = run.getBean(AttendanceRecordsProcessingService.class).getReport(rowData,
                 LocalDate.of(2023, 1, 1),
-                LocalDate.of(2023, 1, 5));
+                LocalDate.of(2023, 1, 15));
         System.out.println("Read " + records.size() + " lines");
     }
 
