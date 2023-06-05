@@ -18,10 +18,21 @@ public class KmhcoAttendanceReportingApplication {
         ConfigurableApplicationContext run = SpringApplication.run(KmhcoAttendanceReportingApplication.class, args);
         List<String[]> rowData = run.getBean(CsvReadingService.class).getRecords("attendance.csv");
         System.out.println("Read " + rowData.size() + " lines");
-        List<Record> records = run.getBean(AttendanceRecordsProcessingService.class).getReport(rowData,
+
+        int monthDays[] = {31, 28, 31, 30, 31};
+
+        AttendanceRecordsProcessingService attendanceRecordsProcessingService = run.getBean(AttendanceRecordsProcessingService.class);
+
+        for (int month = 0; month < monthDays.length; month++) {
+            List<Record> records = attendanceRecordsProcessingService.getReport(rowData,
+                    LocalDate.of(2023, month + 1, 1),
+                    LocalDate.of(2023, month + 1, monthDays[month]));
+            System.out.println("Read " + records.size() + " lines");
+        }
+
+        attendanceRecordsProcessingService.getReport(rowData,
                 LocalDate.of(2023, 1, 1),
-                LocalDate.of(2023, 1, 15));
-        System.out.println("Read " + records.size() + " lines");
+                LocalDate.of(2023, 12, 31));
     }
 
 }

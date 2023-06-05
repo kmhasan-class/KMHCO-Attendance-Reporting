@@ -15,6 +15,14 @@ import java.util.*;
 
 @Service
 public class AttendanceRecordsProcessingService {
+    enum SummaryColumns {
+        ABSENT_COUNT,
+        LATE_COUNT,
+        LEAVE_COUNT,
+        HOLIDAY_COUNT,
+        OVERTIME_COUNT
+    }
+
     private String dateToString(LocalDate localDate) {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("EEE-dd");
         return localDate.format(dateTimeFormatter);
@@ -69,6 +77,7 @@ public class AttendanceRecordsProcessingService {
             records.stream().forEach(record -> rowIndices.putIfAbsent(record.getEmployee(), rowIndices.size()));
 
             LocalDateTime[][][] entriesMatrix = new LocalDateTime[rowIndices.size()][columnIndices.size()][2];
+            int summaryCount[][] = new int[rowIndices.size()][SummaryColumns.values().length];
 
             for (Record record : records) {
                 Employee employee = record.getEmployee();
@@ -99,23 +108,60 @@ public class AttendanceRecordsProcessingService {
 
             rowIndices.forEach(((employee, index) -> employees[index] = employee));
 
-            BufferedWriter writer = new BufferedWriter(new FileWriter("output/attendance-report.html", false));
+            for (int emp = 0; emp < employees.length; emp++)
+                for (int dat = 0; dat < dates.length; dat++) {
+                    if (dates[dat].getDayOfWeek() == DayOfWeek.FRIDAY || dates[dat].getDayOfWeek() == DayOfWeek.SATURDAY) {
+                        summaryCount[emp][SummaryColumns.HOLIDAY_COUNT.ordinal()]++;
+                        if (entriesMatrix[emp][dat][0] != null)
+                            summaryCount[emp][SummaryColumns.OVERTIME_COUNT.ordinal()]++;
+                    } else {
+                        if (entriesMatrix[emp][dat][0] == null)
+                            summaryCount[emp][SummaryColumns.ABSENT_COUNT.ordinal()]++;
+                        else if (entriesMatrix[emp][dat][0].isAfter(entriesMatrix[emp][dat][0].toLocalDate().atTime(9, 30)))
+                            summaryCount[emp][SummaryColumns.LATE_COUNT.ordinal()]++;
+                    }
+                }
 
-            writer.append("<html>");
-            writer.append("<head><title>Attendance Data</title><link rel=\"stylesheet\" href=\"styles.css\"></head>");
-            writer.append("<body>");
-            writer.append("<h1>KMHCO Attendance Data for the period ").append(dateToMonthDayYearString(daysList.get(0))).append(" to ").append(dateToMonthDayYearString(daysList.get(daysList.size() - 1))).append("</h1>");
-            writer.append("<table cellspacing=\"0\" cellpadding=\"0\" border=\"1\" bgcolor=\"#FFF\">");
-            writer.append("<tr>");
-            writer.append("<th>Department</th>");
-            writer.append("<th>Employee</th>");
+            printToHTML("output/attendance-report-" + dates[0] + "-" + dates[dates.length - 1] + ".html", entriesMatrix, summaryCount, employees, dates, false);
+            printToHTML("output/attendance-report-" + dates[0] + "-" + dates[dates.length - 1] + "-summary.html", entriesMatrix, summaryCount, employees, dates, true);
+            printEmployeeList(employees);
+        }
+
+        return records;
+    }
+
+    private void printEmployeeList(Employee[] employees) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter("output/employees.csv", false));
+        for (Employee employee : employees)
+            writer.append(employee.getDepartment()).append(",").append(employee.getEmployeeName()).append('\n');
+        writer.close();
+    }
+
+    private void printToHTML(String filename, LocalDateTime[][][] entriesMatrix, int summaryCount[][], Employee[] employees, LocalDate[] dates, boolean summaryOnly) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(filename, false));
+
+        writer.append("<html>");
+        writer.append("<head><title>Attendance Data</title><link rel=\"stylesheet\" href=\"styles.css\"></head>");
+        writer.append("<body>");
+        writer.append("<h1>KMHCO Attendance Data for the period ").append(dateToMonthDayYearString(dates[0])).append(" to ").append(dateToMonthDayYearString(dates[dates.length - 1])).append("</h1>");
+        writer.append("<table cellspacing=\"0\" cellpadding=\"0\" border=\"1\" bgcolor=\"#FFF\">");
+        writer.append("<tr>");
+        writer.append("<th>Department</th>");
+        writer.append("<th>Employee</th>");
+        if (!summaryOnly) {
             for (LocalDate localDate : dates)
                 writer.append("<th>").append(dateToString(localDate)).append("</th>");
-            writer.append("</tr>");
-            for (int r = 0; r < employees.length; r++) {
-                writer.append("<tr>");
-                writer.append("<th>").append(employees[r].getDepartment()).append("</th>");
-                writer.append("<td>").append(employees[r].getEmployeeName()).append("</th>");
+        }
+        writer.append("<th>Leave</th>");
+        writer.append("<th>Absent</th>");
+        writer.append("<th>Late</th>");
+        writer.append("<th>Overtime</th>");
+        writer.append("</tr>");
+        for (int r = 0; r < employees.length; r++) {
+            writer.append("<tr>");
+            writer.append("<td>").append(employees[r].getDepartment()).append("</td>");
+            writer.append("<td>").append(employees[r].getEmployeeName()).append("</td>");
+            if (!summaryOnly) {
                 for (int c = 0; c < dates.length; c++) {
                     writer.append("<td class=\"");
                     if (entriesMatrix[r][c][0] != null && entriesMatrix[r][c][0].isAfter(entriesMatrix[r][c][0].toLocalDate().atTime(9, 30)))
@@ -126,15 +172,17 @@ public class AttendanceRecordsProcessingService {
                     writer.append(timeToString(entriesMatrix[r][c][0], entriesMatrix[r][c][1]));
                     writer.append("</td>");
                 }
-                writer.append("</tr>");
             }
-            writer.append("</table>");
-            writer.append("</body>");
-            writer.append("</html>");
-            writer.close();
+            writer.append("<td class=\"numbers\">0</td>");
+            writer.append("<td class=\"numbers\">" + summaryCount[r][SummaryColumns.ABSENT_COUNT.ordinal()] + "</td>");
+            writer.append("<td class=\"numbers\">" + summaryCount[r][SummaryColumns.LATE_COUNT.ordinal()] + "</td>");
+            writer.append("<td class=\"numbers\">" + summaryCount[r][SummaryColumns.OVERTIME_COUNT.ordinal()] + "</td>");
+            writer.append("</tr>");
         }
-
-        return records;
+        writer.append("</table>");
+        writer.append("</body>");
+        writer.append("</html>");
+        writer.close();
     }
 
 }

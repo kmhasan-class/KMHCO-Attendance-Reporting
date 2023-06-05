@@ -23,3 +23,7 @@ th {
 .late-entry {
     color: maroon;
 }
+
+.numbers {
+    text-align: right;
+}
